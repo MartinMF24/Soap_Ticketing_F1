@@ -408,5 +408,124 @@ ORDER BY stock ASC;
 | Acción | Comando |
 | :--- | :--- |
 | **Ejecutar Tests Automáticos** | `.\mvnw.cmd test` |
-| **Arrancar Microservicio** | `.\mvnw.cmd spring-boot:run` |
+| **Arrancar Microservicio Local** | `.\mvnw.cmd spring-boot:run` |
 | **Generar Paquete JAR** | `.\mvnw.cmd clean package -DskipTests` |
+
+---
+
+## 11. Guía de Despliegue en la Nube (Render.com)
+
+Esta sección describe el procedimiento paso a paso para hostear el sistema en **Render.com** mediante contenedores **Docker**, permitiendo que el servicio SOAP esté disponible públicamente en internet con cifrado **HTTPS** las 24 horas del día sin necesidad de mantener encendida tu computadora.
+
+### 11.1. Arquitectura de Despliegue en la Nube
+El proyecto ya cuenta con los artefactos listos para el despliegue:
+* **`Dockerfile` Multi-Stage:** Compila el proyecto con Maven 3.9 y JDK 17 en la primera etapa y genera una imagen ligera de ejecución basada en Alpine Linux JRE (~150 MB).
+* **Puerto Dinámico (`server.port=${PORT:8080}`):** En `application.properties`, Spring Boot se enlaza automáticamente a la variable de entorno `$PORT` asignada por Render, permitiendo el ruteo de tráfico sin bloqueos.
+* **Transformación Automática de WSDL:** Spring-WS transforma dinámicamente la dirección `<soap:address location="..."/>` para reflejar el dominio HTTPS público de Render.
+
+---
+
+### 11.2. Paso 1: Subir los Cambios a GitHub
+Asegúrate de que todos los archivos (`Dockerfile`, `.dockerignore`, `pom.xml`, etc.) estén subidos a tu repositorio de GitHub:
+
+```powershell
+git add .
+git commit -m "Configuración para despliegue en la nube con Docker en Render"
+git push origin main
+```
+
+*(Si es un repositorio nuevo, vincúlalo primero: `git remote add origin https://github.com/TU_USUARIO/TU_REPOSITORIO.git` y luego `git push -u origin main`)*.
+
+---
+
+### 11.3. Paso 2: Crear el Web Service en Render
+1. Ingresa a [**https://render.com**](https://render.com) e inicia sesión con tu cuenta de GitHub (**Sign in with GitHub**).
+2. En el panel principal (**Dashboard**), haz clic en el botón superior **New +** y selecciona **Web Service**.
+3. Elige la opción **"Build and deploy from a Git repository"** y pulsa **Next**.
+4. En el listado de repositorios, localiza y selecciona **`Soap_Ticketing_F1`** (si no lo ves, haz clic en *"Configure account"* para otorgar permisos a Render).
+
+---
+
+### 11.4. Paso 3: Configurar los Parámetros del Servicio
+En la pantalla de configuración del servicio, completa los siguientes campos:
+
+| Parámetro | Valor | Descripción |
+| :--- | :--- | :--- |
+| **Name** | `f1-ticketing-legacy-soap` | Nombre del servicio (define el subdominio `.onrender.com`). |
+| **Region** | *Ohio (US East) o Frankfurt (EU)* | Elige la región geográfica más cercana. |
+| **Branch** | `main` | Rama del repositorio que disparará los despliegues. |
+| **Runtime** | **`Docker`** | Render detecta automáticamente el `Dockerfile` en la raíz. |
+| **Instance Type** | **`Free`** | Plan gratuito ($0 USD/mes). |
+
+> **Nota:** No es necesario ingresar comandos de compilación ni variables de entorno adicionales; el `Dockerfile` gestiona la construcción y arranque de forma autónoma.
+
+Haz clic en el botón inferior **Deploy Web Service** (o **Create Web Service**).
+
+---
+
+### 11.5. Paso 4: Monitoreo y Puesta en Producción
+Render iniciará la construcción del contenedor. En la pestaña **Logs** verás el progreso en tiempo real:
+```text
+==> Building image...
+[INFO] Scanning for projects...
+[INFO] Building f1-ticketing-legacy-soap 1.0.0-SNAPSHOT
+[INFO] BUILD SUCCESS
+==> Uploading build...
+==> Starting service with 'java -Djava.security.egd=file:/dev/./urandom -jar app.jar'...
+Tomcat started on port 10000 (http) with context path '/'
+Started F1TicketingSoapApplication in 3.8 seconds
+==> Your service is live 🎉
+```
+
+Una vez que el indicador cambie a **`Live`** (color verde), el servicio estará activo y accesible mediante la URL pública asignada:
+👉 **`https://f1-ticketing-legacy-soap.onrender.com`**
+
+---
+
+### 11.6. Paso 5: Cómo Probar el Servicio en la Nube
+
+#### A. Ver el WSDL desde cualquier navegador:
+Accede a:
+```text
+https://f1-ticketing-legacy-soap.onrender.com/ws/ticketing.wsdl
+```
+
+#### B. Consultar Disponibilidad (Postman / SoapUI):
+* **Método:** `POST`
+* **URL:** `https://f1-ticketing-legacy-soap.onrender.com/ws/ticketing`
+* **Header:** `Content-Type: text/xml; charset=utf-8`
+* **Body:**
+```xml
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:leg="http://f1.ticketing.soap/legacy">
+   <soapenv:Body>
+      <leg:consultarDisponibilidadRequest>
+         <leg:codigoEvento>F1-2026-MAD</leg:codigoEvento>
+      </leg:consultarDisponibilidadRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+```
+
+#### C. Reservar Entradas en la Nube (PowerShell / Terminal):
+```powershell
+$body = @"
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:leg="http://f1.ticketing.soap/legacy">
+   <soapenv:Body>
+      <leg:reservarEntradasRequest>
+         <leg:codigoEvento>F1-2026-MAD</leg:codigoEvento>
+         <leg:tribuna>Paddock Club Madrid</leg:tribuna>
+         <leg:cantidad>2</leg:cantidad>
+      </leg:reservarEntradasRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+"@
+
+Invoke-RestMethod -Uri "https://f1-ticketing-legacy-soap.onrender.com/ws/ticketing" -Method Post -ContentType "text/xml; charset=utf-8" -Body $body
+```
+
+---
+
+### 11.7. Consideraciones Operativas del Plan Gratuito (Free Tier)
+* **Suspensión por Inactividad (Spin-down):** Si la aplicación no recibe peticiones durante 15 minutos continuos, Render suspende el contenedor para optimizar recursos.
+* **Arranque en Frío (Cold Start):** Al recibir una nueva solicitud tras estar en suspensión, tardará aproximadamente entre 30 y 50 segundos en reactivarse. Las solicitudes subsecuentes responderán de inmediato con tiempos de respuesta normales (~50-100 ms).
+

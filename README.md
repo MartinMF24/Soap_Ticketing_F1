@@ -185,3 +185,28 @@ curl -X POST http://localhost:8080/ws/ticketing \
   -H "Content-Type: text/xml; charset=utf-8" \
   -d "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:leg=\"http://f1.ticketing.soap/legacy\"><soapenv:Body><leg:consultarDisponibilidadRequest><leg:codigoEvento>F1-2026-MAD</leg:codigoEvento></leg:consultarDisponibilidadRequest></soapenv:Body></soapenv:Envelope>"
 ```
+
+---
+
+## 7. Despliegue en la Nube (Render.com)
+
+El proyecto incluye soporte nativo para despliegue en **Render** mediante contenedores Docker (`Dockerfile` multi-stage optimizado):
+
+1. **Subir cambios a GitHub:**
+   ```powershell
+   git add .
+   git commit -m "Configuración Docker para Render"
+   git push origin main
+   ```
+2. **Crear Web Service en Render:**
+   * Entra a [render.com](https://render.com) e inicia sesión con GitHub.
+   * Haz clic en **New +** > **Web Service** > Conecta tu repositorio `Soap_Ticketing_F1`.
+   * Parámetros: **Runtime:** `Docker`, **Plan:** `Free`.
+   * Presiona **Deploy Web Service**.
+3. **Acceso:**
+   Una vez en estado `Live`, accede a:
+   * **WSDL:** `https://tu-app.onrender.com/ws/ticketing.wsdl`
+   * **SOAP Endpoint:** `https://tu-app.onrender.com/ws/ticketing`
+
+> 📖 **Para la guía paso a paso con capturas y ejemplos, consulta la [Sección 11 de DOCUMENTACION_SISTEMA_LEGACY.md](file:///c:/Users/Martin/Documents/GitHub/Soap_Ticketing_F1/DOCUMENTACION_SISTEMA_LEGACY.md#11-gu%C3%ADa-de-despliegue-en-la-nube-rendercom).**
+
