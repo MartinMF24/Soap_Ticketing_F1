@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://f1.ticketing.soap/legacy"
+           targetNamespace="http://f1.ticketing.soap/legacy"
+           elementFormDefault="qualified">
+
+    <!-- Definición del tipo de dato InventarioGrada -->
+    <xs:complexType name="InventarioGrada">
+        <xs:sequence>
+            <xs:element name="id" type="xs:long" minOccurs="0"/>
+            <xs:element name="codigoEvento" type="xs:string"/>
+            <xs:element name="carrera" type="xs:string"/>
+            <xs:element name="fechaCarrera" type="xs:date"/>
+            <xs:element name="tribuna" type="xs:string"/>
+            <xs:element name="categoria" type="xs:string"/>
+            <xs:element name="precioUsd" type="xs:decimal"/>
+            <xs:element name="stock" type="xs:int"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- Request / Response para consultarDisponibilidad -->
+    <xs:element name="consultarDisponibilidadRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="codigoEvento" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="consultarDisponibilidadResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="gradas" type="tns:InventarioGrada" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Request / Response para reservarEntradas -->
+    <xs:element name="reservarEntradasRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="codigoEvento" type="xs:string"/>
+                <xs:element name="tribuna" type="xs:string"/>
+                <xs:element name="cantidad" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="reservarEntradasResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="codigoConfirmacion" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Fault Bean para SinStockException -->
+    <xs:element name="SinStockFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="mensaje" type="xs:string"/>
+                <xs:element name="codigoError" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
